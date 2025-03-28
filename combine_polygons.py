@@ -10,13 +10,15 @@ conn = duckdb.connect('polygons.db')
 conn.execute("INSTALL spatial;")
 conn.execute("LOAD spatial;")
 
+# Constructing string of CDL year columns to use in query
+subquery = ""
+for year in range(2016, 2024, 1):
+    substring = f"CDL{year}, "
+    subquery = subquery + substring
+
 # Create new DuckDB table from dataframe
 conn.execute("DROP TABLE IF EXISTS CSB_sample;")
-conn.execute(f"CREATE TABLE CSB_sample AS SELECT CSBID, geom FROM ST_Read('{polygons_path}');")
-
-# Create column for pattern and change some values for testing (1 = Corn, 5 = Soybean, 36 = Alfalfa)
-conn.execute("ALTER TABLE CSB_sample ADD COLUMN pattern INTEGER[8] DEFAULT array_value(1, 5, 1, 5, 1, 5, 1, 5);")
-conn.execute("UPDATE CSB_sample SET pattern = array_value(1, 1, 5, 1, 1, 5, 36, 36) WHERE CSBID IN(551623004870722, 551623004870682);")
+conn.execute(f"CREATE TABLE CSB_sample AS SELECT CSBID, geom, array_value({subquery[:-2]}) AS pattern FROM ST_Read('{polygons_path}');")
 
 # Create copy of table for dynamic use and add a column for merged IDs initially empty
 conn.execute("CREATE OR REPLACE TABLE combined_poly AS SELECT * FROM CSB_sample;")
